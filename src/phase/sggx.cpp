@@ -27,9 +27,8 @@ SGGX phase function (:monosp:`sggx`)
 This plugin implements the SGGX phase function :cite:`Heitz2015SGGX`.
 The SGGX phase function is an anisotropic microflake phase function :cite:`Jakob10`.
 This phase function can be useful to model fibers or surface-like structures using volume rendering.
-The SGGX microflake distribution is parametrized by a symmetric, positive definite matrix :math:`S`.
-This positive definite matrix describes the geometry of a 3D ellipsoid.
-The microflake normals of the SGGX phase function correspond to normals of this ellipsoid.
+The SGGX distribution is the distribution of normals (NDF) of a 3D ellipsoid.
+It is parametrized by a symmetric, positive definite matrix :math:`S`.
 
 Due to it's symmetry, the matrix :math:`S` is fully specified by providing the entries
 :math:`S_{xx}`, :math:`S_{yy}`, :math:`S_{zz}`, :math:`S_{xy}`, :math:`S_{xz}` and :math:`S_{yz}`.
@@ -46,7 +45,7 @@ It is the responsibility of the user to ensure that these parameters describe a 
 
     .. code-tab:: python
 
-        'type': 'rayleigh',
+        'type': 'sggx',
         'S': {
             'type': 'gridvolume',
             'filename': 'volume.vol'
@@ -69,7 +68,7 @@ public:
     }
 
     void traverse(TraversalCallback *callback) override {
-        callback->put_parameter("S", m_ndf_params, +ParamFlags::Differentiable);
+        callback->put_object("S", m_ndf_params.get(), +ParamFlags::Differentiable);
     }
 
     MI_INLINE
@@ -85,7 +84,7 @@ public:
                                                  Mask active) const override {
         MI_MASKED_FUNCTION(ProfilerPhase::PhaseFunctionSample, active);
         auto s         = eval_ndf_params(mi, active);
-        auto sampled_n = sggx_sample_vndf(mi.sh_frame, sample2, s);
+        auto sampled_n = sggx_sample(mi.sh_frame, sample2, s);
 
         // The diffuse variant of the SGGX is currently not supported and
         // requires some changes to the phase function interface to work in
@@ -98,7 +97,7 @@ public:
            wo = frame.to_world(wo);
            return {wo, pdf};
            } else { */
-        Float pdf = 0.25f * sggx_ndf_pdf(Vector3f(sampled_n), s) /
+        Float pdf = 0.25f * sggx_pdf(Vector3f(sampled_n), s) /
                     sggx_projected_area(mi.wi, s);
         Vector3f wo = dr::normalize(reflect(mi.wi, sampled_n));
         return { wo, 1.f, pdf };
@@ -112,10 +111,10 @@ public:
         MI_MASKED_FUNCTION(ProfilerPhase::PhaseFunctionEvaluate, active);
         auto s = eval_ndf_params(mi, active);
         /* if (m_diffuse) {
-           auto sampled_n = sggx_sample_vndf(mi.sh_frame,
+           auto sampled_n = sggx_sample(mi.sh_frame,
            ctx.sampler->next_2d(active), s); return dr::InvPi<Float> *
            dr::maximum(dr::dot(wo, sampled_n), 0.f); } else { */
-        Float pdf = 0.25f * sggx_ndf_pdf(dr::normalize(wo + mi.wi), s) /
+        Float pdf = 0.25f * sggx_pdf(dr::normalize(wo + mi.wi), s) /
                     sggx_projected_area(mi.wi, s);
         // }
 

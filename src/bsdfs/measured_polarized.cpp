@@ -99,6 +99,8 @@ here as a user parameter `alpha_sample` and should be set according to the
 approximate roughness of the material to be rendered. Note that any value here
 will result in a correct rendering but the level of noise can vary significantly.
 
+.. warning::
+    This BSDF is only supported in ``*_spectral_polarized`` variants.
 */
 template <typename Float, typename Spectrum>
 class MeasuredPolarized final : public BSDF<Float, Spectrum> {
@@ -110,6 +112,7 @@ public:
 
     MeasuredPolarized(const Properties &props) : Base(props) {
         m_flags = BSDFFlags::GlossyReflection | BSDFFlags::FrontSide;
+        dr::set_attr(this, "flags", m_flags);
         m_components.push_back(m_flags);
 
         m_alpha_sample = props.get<ScalarFloat>("alpha_sample", 0.1f);
@@ -183,7 +186,7 @@ public:
         Float cos_theta_i = Frame3f::cos_theta(si.wi);
         active &= cos_theta_i > 0.f;
 
-        BSDFSample3f bs;
+        BSDFSample3f bs = dr::zeros<BSDFSample3f>();
         if (unlikely(dr::none_or<false>(active) || !ctx.is_enabled(BSDFFlags::GlossyReflection)))
             return { bs, 0.f };
 
